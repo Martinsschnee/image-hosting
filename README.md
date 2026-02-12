@@ -1,479 +1,781 @@
-# 🏆 sc_playtime - FiveM Spielzeit Leaderboard
+# 🏙️ Sona City – Web Application Architecture Plan
 
-Ein komplexes FiveM-Resource-Script, das die Spielzeit aller Spieler trackt und automatisch ein **Top 15 Leaderboard** in einem Discord-Channel als persistente, regelmäßig aktualisierte Nachricht anzeigt.
+## 📋 Projektübersicht
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
-![FiveM](https://img.shields.io/badge/FiveM-Ready-green.svg)
-![ESX](https://img.shields.io/badge/ESX-Legacy-orange.svg)
-
----
-
-## 📋 Features
-
-- ✅ **Automatisches Spielzeit-Tracking** - Erfasst die Spielzeit aller Spieler
-- ✅ **Discord Integration** - Bot läuft direkt auf dem FiveM Server (kein externes Hosting)
-- ✅ **Persistente Message** - Eine Message wird regelmäßig editiert (nicht neu gesendet)
-- ✅ **Top 15 Leaderboard** - Zeigt die aktivsten 15 Spieler
-- ✅ **Ingame-Namen** - Verwendet ESX Charakternamen (firstname + lastname)
-- ✅ **Zeitformat dd:hh:mm** - Tage:Stunden:Minuten Format
-- ✅ **Spezielle Emojis** - 🥇🥈🥉 für die Top 3 Plätze
-- ✅ **Countdown-Timer** - Zeigt Zeit bis zum nächsten Update
-- ✅ **Konfigurierbar** - Update-Intervall, Texte, Design anpassbar
-- ✅ **Performance-Optimiert** - Periodisches Speichern, Rate Limiting
+**Projekt:** Sona City FiveM Roleplay Server – Landing Page + Admin Dashboard (CMS)
+**Vibe:** Dark, Premium, High-End Gaming
+**Primary Accent:** `#e2491c` (Vibrant Orange) | **Background:** `#0a0a0a` | **Surface:** Glassmorphism/Blur
 
 ---
 
-## 🎨 Vorschau
+## 🛠️ Tech Stack
 
-Das Leaderboard wird im Discord wie folgt angezeigt:
+| Kategorie | Technologie | Version |
+|-----------|-------------|---------|
+| Framework | Next.js (App Router) | 15+ |
+| Sprache | TypeScript (Strict Mode) | 5.x |
+| Styling | Tailwind CSS + Shadcn/UI | 4.x / latest |
+| Datenbank | PostgreSQL (lokal für Dev) | 16+ |
+| ORM | Prisma | 6.x |
+| Auth | NextAuth.js | v5 (beta) |
+| Validation | Zod | 3.x |
+| Animation | Framer Motion | 11.x |
+| Charts | Recharts | 2.x |
+| Rate Limiting | Custom In-Memory + optional Upstash | - |
+| Icons | Lucide React | latest |
+
+---
+
+## 📁 Ordnerstruktur
 
 ```
-🏆 Top 15 Spielzeit Leaderboard
-Hier werden die Aktivsten 15 Spieler auf unserem Five:M Server angezeigt.
-
-📊 Die Top 15 Spieler:
-🥇 1. Justin Gamer | 45:12:30
-🥈 2. Max Mustermann | 38:05:15
-🥉 3. Anna Schmidt | 32:18:45
-4. Tom Weber | 28:30:00
-5. Lisa Müller | 25:45:20
-...
-
-Die Spielzeiten wurden zuletzt vor: 2 Minuten aktualisiert
-Die nächste Aktualisierung folgt in: 13 Minuten
-
-Sona City | 20:50 am 09.02.2026
+sona-city-web/
+├── .env.local                    # Umgebungsvariablen (NICHT committen)
+├── .env.example                  # Template für Umgebungsvariablen
+├── next.config.ts                # Next.js Config + Security Headers
+├── tailwind.config.ts            # Tailwind Konfiguration
+├── tsconfig.json                 # TypeScript Strict Mode
+├── prisma/
+│   ├── schema.prisma             # Datenbank-Schema
+│   ├── seed.ts                   # Seed-Daten für Entwicklung
+│   └── migrations/               # Auto-generierte Migrationen
+├── public/
+│   ├── fonts/                    # Custom Fonts
+│   ├── images/                   # Statische Bilder
+│   │   ├── hero-bg.webp
+│   │   ├── logo.svg
+│   │   └── team/                 # Team-Member Avatare (Fallback)
+│   └── favicon.ico
+├── src/
+│   ├── app/
+│   │   ├── layout.tsx            # Root Layout (Fonts, Metadata, Providers)
+│   │   ├── page.tsx              # Landing Page (Public)
+│   │   ├── globals.css           # Globale Styles + Tailwind Directives
+│   │   ├── not-found.tsx         # Custom 404
+│   │   ├── error.tsx             # Global Error Boundary
+│   │   │
+│   │   ├── (public)/             # Route Group: Public Pages
+│   │   │   ├── page.tsx          # Landing Page (Re-export oder Redirect)
+│   │   │   └── impressum/
+│   │   │       └── page.tsx      # Impressum/Legal
+│   │   │
+│   │   ├── admin/                # Admin Dashboard (geschützt via Middleware)
+│   │   │   ├── layout.tsx        # Admin Layout (Sidebar, Auth-Check)
+│   │   │   ├── page.tsx          # Dashboard Home (Stats Overview)
+│   │   │   ├── news/
+│   │   │   │   ├── page.tsx      # News-Liste (CRUD)
+│   │   │   │   ├── new/
+│   │   │   │   │   └── page.tsx  # Neuen Post erstellen
+│   │   │   │   └── [id]/
+│   │   │   │       └── edit/
+│   │   │   │           └── page.tsx # Post bearbeiten
+│   │   │   ├── team/
+│   │   │   │   ├── page.tsx      # Team verwalten
+│   │   │   │   └── new/
+│   │   │   │       └── page.tsx  # Neues Teammitglied
+│   │   │   ├── players/
+│   │   │   │   └── page.tsx      # Spieler-Management (Tabelle)
+│   │   │   ├── settings/
+│   │   │   │   └── page.tsx      # Server-Einstellungen
+│   │   │   └── logs/
+│   │   │       └── page.tsx      # Audit Logs (immutable)
+│   │   │
+│   │   ├── api/
+│   │   │   ├── auth/
+│   │   │   │   └── [...nextauth]/
+│   │   │   │       └── route.ts  # NextAuth.js v5 Route Handler
+│   │   │   ├── stats/
+│   │   │   │   └── route.ts      # GET: Server-Stats + Player Count
+│   │   │   ├── news/
+│   │   │   │   ├── route.ts      # GET (public), POST (admin)
+│   │   │   │   └── [id]/
+│   │   │   │       └── route.ts  # GET, PUT, DELETE (admin)
+│   │   │   ├── team/
+│   │   │   │   ├── route.ts      # GET (public), POST (admin)
+│   │   │   │   └── [id]/
+│   │   │   │       └── route.ts  # PUT, DELETE (admin)
+│   │   │   ├── players/
+│   │   │   │   ├── route.ts      # GET, POST actions (admin only)
+│   │   │   │   └── [id]/
+│   │   │   │       └── route.ts  # Player actions (ban/kick/whitelist)
+│   │   │   └── settings/
+│   │   │       └── route.ts      # GET, PUT (admin only)
+│   │   │
+│   │   └── login/
+│   │       └── page.tsx          # Admin Login Page
+│   │
+│   ├── components/
+│   │   ├── ui/                   # Shadcn/UI Komponenten (auto-generiert)
+│   │   │   ├── button.tsx
+│   │   │   ├── card.tsx
+│   │   │   ├── input.tsx
+│   │   │   ├── dialog.tsx
+│   │   │   ├── table.tsx
+│   │   │   ├── badge.tsx
+│   │   │   ├── toast.tsx
+│   │   │   ├── dropdown-menu.tsx
+│   │   │   └── ...
+│   │   ├── landing/              # Landing Page Komponenten
+│   │   │   ├── hero-section.tsx
+│   │   │   ├── stats-graph.tsx
+│   │   │   ├── feature-grid.tsx
+│   │   │   ├── team-section.tsx
+│   │   │   ├── news-feed.tsx
+│   │   │   ├── footer.tsx
+│   │   │   └── navbar.tsx
+│   │   ├── admin/                # Admin Dashboard Komponenten
+│   │   │   ├── sidebar.tsx
+│   │   │   ├── admin-header.tsx
+│   │   │   ├── stats-cards.tsx
+│   │   │   ├── news-form.tsx
+│   │   │   ├── team-form.tsx
+│   │   │   ├── player-table.tsx
+│   │   │   ├── audit-log-table.tsx
+│   │   │   └── settings-form.tsx
+│   │   └── shared/               # Geteilte Komponenten
+│   │       ├── motion-wrapper.tsx
+│   │       ├── loading-spinner.tsx
+│   │       ├── error-display.tsx
+│   │       └── page-transition.tsx
+│   │
+│   ├── lib/
+│   │   ├── prisma.ts             # Prisma Client Singleton
+│   │   ├── auth.ts               # NextAuth.js v5 Konfiguration
+│   │   ├── auth-options.ts       # Auth Provider + Callbacks
+│   │   ├── rate-limit.ts         # Rate Limiter Implementierung
+│   │   ├── fivem-api.ts          # FiveM Server API Client
+│   │   ├── utils.ts              # Utility-Funktionen (cn, formatDate, etc.)
+│   │   └── constants.ts          # App-weite Konstanten
+│   │
+│   ├── schemas/                  # Zod Validation Schemas
+│   │   ├── auth.schema.ts        # Login/Register Validation
+│   │   ├── news.schema.ts        # News CRUD Validation
+│   │   ├── team.schema.ts        # Team CRUD Validation
+│   │   ├── player.schema.ts      # Player Action Validation
+│   │   └── settings.schema.ts    # Settings Validation
+│   │
+│   ├── hooks/                    # Custom React Hooks
+│   │   ├── use-server-stats.ts   # SWR/React Query für Live-Stats
+│   │   ├── use-scroll-animation.ts
+│   │   └── use-media-query.ts
+│   │
+│   ├── types/                    # TypeScript Type Definitions
+│   │   ├── index.ts              # Zentrale Type Exports
+│   │   ├── api.ts                # API Response Types
+│   │   └── fivem.ts              # FiveM API Types
+│   │
+│   └── middleware.ts             # Next.js Middleware (Auth + RBAC + Rate Limit)
+│
+├── package.json
+└── README.md
 ```
 
 ---
 
-## 📦 Voraussetzungen
+## 🗄️ Prisma Schema
 
-- **FiveM Server** mit ESX Framework
-- **oxmysql** Resource installiert
-- **Discord Bot** erstellt (mit Message Content Intent)
-- **Node.js Support** in FiveM aktiviert (standardmäßig aktiv)
+```prisma
+// prisma/schema.prisma
 
----
+generator client {
+  provider = "prisma-client-js"
+}
 
-## 🚀 Installation
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
 
-### 1. Resource herunterladen
+// ==========================================
+// AUTH & USER MANAGEMENT
+// ==========================================
 
-Kopiere den `sc_playtime` Ordner in deinen `resources/` Ordner:
+enum Role {
+  ADMIN
+  MODERATOR
+  VIEWER
+}
 
-```
-resources/
-└── sc_playtime/
-    ├── fxmanifest.lua
-    ├── server.js
-    ├── config.js
-    ├── install.sql
-    └── README.md
-```
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  passwordHash  String    // bcrypt hashed
+  role          Role      @default(VIEWER)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastLoginAt   DateTime?
 
-### 2. Datenbank importieren
+  // Relations
+  auditLogs     AuditLog[]
+  posts         Post[]      @relation("PostAuthor")
 
-Importiere die SQL-Datei in deine Datenbank:
+  @@map("users")
+}
 
-```bash
-mysql -u root -p deine_datenbank < sc_playtime/install.sql
-```
+// NextAuth.js Session & Account (für zukünftige OAuth-Erweiterung)
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-Oder über phpMyAdmin:
-1. Öffne phpMyAdmin
-2. Wähle deine Datenbank
-3. Gehe zu "Importieren"
-4. Wähle `install.sql` aus
-5. Klicke auf "OK"
+  @@map("sessions")
+}
 
-### 3. Discord Bot erstellen
+// ==========================================
+// CONTENT MANAGEMENT
+// ==========================================
 
-1. Gehe zu [Discord Developer Portal](https://discord.com/developers/applications)
-2. Klicke auf "New Application"
-3. Gib einen Namen ein (z.B. "Sona City Playtime")
-4. Gehe zu "Bot" → "Add Bot"
-5. Aktiviere unter "Privileged Gateway Intents":
-   - ✅ Message Content Intent
-6. Kopiere den Bot Token (unter "TOKEN" → "Reset Token")
-7. Gehe zu "OAuth2" → "URL Generator"
-8. Wähle:
-   - **Scopes:** `bot`
-   - **Bot Permissions:** 
-     - ✅ Send Messages
-     - ✅ Read Message History
-     - ✅ View Channel
-9. Kopiere die generierte URL und füge den Bot zu deinem Discord Server hinzu
+model Post {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  content     String   // Markdown oder HTML
+  excerpt     String?  // Kurzbeschreibung
+  imageUrl    String?
+  category    String   @default("update") // update, patch, event, announcement
+  published   Boolean  @default(false)
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-### 4. Channel ID ermitteln
+  // Relations
+  authorId    String
+  author      User     @relation("PostAuthor", fields: [authorId], references: [id])
 
-1. Aktiviere den Discord Developer Mode:
-   - Discord → Einstellungen → Erweitert → Entwicklermodus aktivieren
-2. Rechtsklick auf den gewünschten Channel → "ID kopieren"
+  @@index([published, publishedAt])
+  @@index([slug])
+  @@map("posts")
+}
 
-### 5. Konfiguration
+model TeamMember {
+  id          String   @id @default(cuid())
+  name        String
+  role        String   // z.B. "Inhaber", "Developer", "Moderator"
+  description String?
+  imageUrl    String?
+  discordId   String?
+  sortOrder   Int      @default(0) // Für manuelle Sortierung
+  visible     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-#### A. `config.js` bearbeiten
+  @@map("team_members")
+}
 
-Öffne `sc_playtime/config.js` und trage ein:
+// ==========================================
+// SERVER & PLAYER MANAGEMENT
+// ==========================================
 
-```javascript
-// Discord Server (Guild) ID
-guildId: '1007614962006491200', // Deine Guild ID
+model ServerStats {
+  id            String   @id @default(cuid())
+  playerCount   Int      @default(0)
+  maxPlayers    Int      @default(128)
+  peakPlayers   Int      @default(0)
+  isOnline      Boolean  @default(true)
+  recordedAt    DateTime @default(now())
 
-// Channel ID für das Leaderboard
-channelId: 'HIER_DEINE_CHANNEL_ID_EINTRAGEN',
-```
+  @@index([recordedAt])
+  @@map("server_stats")
+}
 
-Optional kannst du auch anpassen:
-- `updateInterval` - Update-Intervall (Standard: 15 Minuten)
-- `saveInterval` - Speicher-Intervall (Standard: 1 Minute)
-- `texts` - Alle Texte im Leaderboard
-- `accentColor` - Farbe des Leaderboards
-- `imageUrl` - Logo/Bild URL
+model ServerSettings {
+  id                String   @id @default("default")
+  serverName        String   @default("Sona City")
+  serverIp          String   @default("")
+  fivemServerId     String   @default("") // cfx.re Server-ID
+  discordInvite     String   @default("")
+  fivemConnectUrl   String   @default("") // fivem://connect/...
+  maintenanceMode   Boolean  @default(false)
+  maintenanceMsg    String   @default("Server ist im Wartungsmodus")
+  manualPlayerPeak  Int?     // Falls API ausfällt
+  heroTitle         String   @default("Willkommen in Sona City")
+  heroSubtitle      String   @default("Dein neues Zuhause im Roleplay")
+  updatedAt         DateTime @updatedAt
 
-#### B. `server.cfg` bearbeiten
+  @@map("server_settings")
+}
 
-Füge folgende Zeilen zu deiner `server.cfg` hinzu:
+model Player {
+  id              String    @id @default(cuid())
+  fivemId         String    @unique // Citizen/License ID
+  name            String
+  discordId       String?
+  steamId         String?
+  isWhitelisted   Boolean   @default(false)
+  isBanned        Boolean   @default(false)
+  banReason       String?
+  bannedAt        DateTime?
+  bannedUntil     DateTime? // null = permanent
+  firstJoinedAt   DateTime  @default(now())
+  lastSeenAt      DateTime  @default(now())
+  totalPlaytime   Int       @default(0) // Minuten
 
-```bash
-# sc_playtime Resource
-ensure sc_playtime
+  @@index([name])
+  @@index([fivemId])
+  @@index([isBanned])
+  @@map("players")
+}
 
-# Discord Bot Token (WICHTIG: Geheim halten!)
-set sc_playtime_token "DEIN_BOT_TOKEN_HIER"
-```
+// ==========================================
+// AUDIT & SECURITY
+// ==========================================
 
-**⚠️ WICHTIG:** Halte den Bot Token geheim! Teile ihn niemals öffentlich.
+model AuditLog {
+  id          String   @id @default(cuid())
+  action      String   // z.B. "PLAYER_BAN", "POST_CREATE", "SETTINGS_UPDATE"
+  targetType  String?  // z.B. "Player", "Post", "TeamMember"
+  targetId    String?
+  details     String?  // JSON String mit Details
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
 
-### 6. Resource starten
+  // Relations
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
 
-Starte deinen FiveM Server oder führe aus:
+  @@index([action])
+  @@index([createdAt])
+  @@index([userId])
+  @@map("audit_logs")
+}
 
-```bash
-restart sc_playtime
-```
+model PageView {
+  id        String   @id @default(cuid())
+  path      String
+  userAgent String?
+  referer   String?
+  createdAt DateTime @default(now())
 
----
-
-## ⚙️ Konfiguration
-
-### Update-Intervall ändern
-
-In [`config.js`](config.js):
-
-```javascript
-// 15 Minuten (Standard)
-updateInterval: 900000,
-
-// 5 Minuten
-updateInterval: 300000,
-
-// 30 Minuten
-updateInterval: 1800000,
-```
-
-### Texte anpassen
-
-In [`config.js`](config.js):
-
-```javascript
-texts: {
-    title: '## ``🏆`` Top 15 Spielzeit Leaderboard',
-    subtitle: '**Dein eigener Text hier**',
-    leaderboardTitle: '### ``📊`` Die Top 15 Spieler:',
-    // ...
+  @@index([path])
+  @@index([createdAt])
+  @@map("page_views")
 }
 ```
 
-### Farbe ändern
-
-In [`config.js`](config.js):
-
-```javascript
-// Akzentfarbe (Dezimal-Wert von Hex-Farbe)
-// Konvertiere Hex zu Dezimal: https://www.rapidtables.com/convert/number/hex-to-decimal.html
-
-accentColor: 14829852, // #E2491C (Orange)
-accentColor: 5814783,  // #58B0FF (Blau)
-accentColor: 3066993,  // #2ECC71 (Grün)
-```
-
-### Debug-Modus aktivieren
-
-In [`config.js`](config.js):
-
-```javascript
-debug: true,
-```
-
-Zeigt detaillierte Logs in der Server-Konsole.
-
 ---
 
-## 🔍 Troubleshooting
+## 🔒 Security-Architektur
 
-### Problem: Bot sendet keine Message
+### Systemübersicht
 
-**Lösung:**
-1. Prüfe ob der Bot Token korrekt in `server.cfg` gesetzt ist
-2. Prüfe ob die Channel ID in `config.js` korrekt ist
-3. Prüfe ob der Bot die nötigen Permissions hat:
-   - Send Messages
-   - Read Message History
-   - View Channel
-4. Prüfe die Server-Logs: `restart sc_playtime`
+```mermaid
+flowchart TB
+    subgraph Client [Browser/Client]
+        LP[Landing Page]
+        AD[Admin Dashboard]
+    end
 
-### Problem: Spielzeit wird nicht getrackt
+    subgraph Middleware [Next.js Middleware]
+        MW_AUTH[Auth Check]
+        MW_RBAC[Role Check - RBAC]
+        MW_RATE[Rate Limiter]
+        MW_HEADERS[Security Headers]
+    end
 
-**Lösung:**
-1. Prüfe ob `oxmysql` läuft: `ensure oxmysql`
-2. Prüfe ob die Tabellen existieren:
-   ```sql
-   SHOW TABLES LIKE 'sc_playtime%';
-   ```
-3. Prüfe ob ESX `users` Tabelle Einträge hat
-4. Aktiviere Debug-Modus in `config.js`
+    subgraph API [API Routes]
+        PUBLIC_API[Public API - Stats, News, Team]
+        ADMIN_API[Admin API - CRUD, Player Mgmt]
+    end
 
-### Problem: Message wird nicht aktualisiert
+    subgraph Validation [Zod Validation Layer]
+        ZOD_IN[Input Validation]
+        ZOD_OUT[Output Sanitization]
+    end
 
-**Lösung:**
-1. Prüfe ob die Message ID korrekt gespeichert wurde:
-   ```sql
-   SELECT * FROM sc_playtime_config WHERE `key` = 'leaderboard_message_id';
-   ```
-2. Prüfe Discord API Rate Limits (max. 5 Updates/5 Sekunden)
-3. Prüfe Server-Logs auf Fehler
+    subgraph Data [Datenbank]
+        PRISMA[Prisma ORM - Parameterized Queries]
+        PG[(PostgreSQL)]
+    end
 
-### Problem: Namen werden nicht angezeigt
+    subgraph External [Externe APIs]
+        FIVEM[FiveM Server API]
+    end
 
-**Lösung:**
-1. Prüfe ob die ESX `users` Tabelle `firstname` und `lastname` Spalten hat
-2. Prüfe ob Spieler in der `users` Tabelle existieren:
-   ```sql
-   SELECT identifier, firstname, lastname FROM users LIMIT 5;
-   ```
-3. Stelle sicher dass Spieler sich mindestens einmal eingeloggt haben
-
----
-
-## 📊 Datenbank-Struktur
-
-### Tabelle: `sc_playtime`
-
-| Spalte | Typ | Beschreibung |
-|--------|-----|--------------|
-| `id` | INT | Primärschlüssel |
-| `identifier` | VARCHAR(60) | ESX Identifier (license:xxx) |
-| `playtime_seconds` | BIGINT | Gesamte Spielzeit in Sekunden |
-| `last_seen` | TIMESTAMP | Letzter Login |
-| `created_at` | TIMESTAMP | Erster Login |
-
-### Tabelle: `sc_playtime_config`
-
-| Spalte | Typ | Beschreibung |
-|--------|-----|--------------|
-| `key` | VARCHAR(50) | Konfigurations-Schlüssel |
-| `value` | TEXT | Konfigurations-Wert |
-| `updated_at` | TIMESTAMP | Letzte Änderung |
-
----
-
-## 🔧 Erweiterte Konfiguration
-
-### Message ID Speicherung ändern
-
-In [`config.js`](config.js):
-
-```javascript
-// In Datenbank speichern (empfohlen)
-messageIdStorage: 'database',
-
-// In config.js speichern
-messageIdStorage: 'config',
-messageId: 'DEINE_MESSAGE_ID_HIER',
+    LP --> MW_HEADERS --> PUBLIC_API
+    AD --> MW_HEADERS --> MW_AUTH --> MW_RBAC --> ADMIN_API
+    MW_RATE --> PUBLIC_API
+    MW_RATE --> ADMIN_API
+    PUBLIC_API --> ZOD_IN --> PRISMA --> PG
+    ADMIN_API --> ZOD_IN --> PRISMA --> PG
+    PUBLIC_API --> FIVEM
+    PRISMA --> ZOD_OUT
 ```
 
-### Periodisches Speichern anpassen
+### 1. Middleware – Auth + RBAC
 
-In [`config.js`](config.js):
+```typescript
+// src/middleware.ts - Konzept
 
-```javascript
-// Aktive Sessions alle 60 Sekunden speichern (Standard)
-saveInterval: 60000,
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { getToken } from "next-auth/jwt";
 
-// Alle 30 Sekunden
-saveInterval: 30000,
+// Geschützte Routen-Patterns
+const ADMIN_ROUTES = ["/admin"];
+const API_ADMIN_ROUTES = ["/api/players", "/api/settings", "/api/news", "/api/team"];
+const PUBLIC_API_ROUTES = ["/api/stats", "/api/auth"];
 
-// Alle 2 Minuten
-saveInterval: 120000,
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // 1. Security Headers für ALLE Requests
+  const response = NextResponse.next();
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set("X-XSS-Protection", "1; mode=block");
+  response.headers.set(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=()"
+  );
+
+  // 2. Admin-Routen schützen
+  const isAdminRoute = ADMIN_ROUTES.some((r) => pathname.startsWith(r));
+  const isAdminApi = API_ADMIN_ROUTES.some((r) => pathname.startsWith(r));
+
+  if (isAdminRoute || isAdminApi) {
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
+
+    // Nicht eingeloggt -> Login-Redirect
+    if (!token) {
+      if (isAdminApi) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
+
+    // Rolle prüfen (RBAC)
+    if (token.role !== "ADMIN" && token.role !== "MODERATOR") {
+      if (isAdminApi) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+  }
+
+  return response;
+}
+
+export const config = {
+  matcher: ["/admin/:path*", "/api/:path*"],
+};
 ```
 
-**Hinweis:** Kürzere Intervalle = mehr Datenbank-Queries, aber genauere Spielzeit bei Server-Crashes.
+### 2. Rate Limiting
 
----
+```typescript
+// src/lib/rate-limit.ts - Konzept
 
-## 📝 Logs
+const rateLimitMap = new Map<string, { count: number; lastReset: number }>();
 
-### Wichtige Log-Meldungen
+export function rateLimit(options: {
+  windowMs: number;
+  maxRequests: number;
+}) {
+  return {
+    check: (identifier: string): { success: boolean; remaining: number } => {
+      const now = Date.now();
+      const record = rateLimitMap.get(identifier);
 
-```bash
-# Erfolgreicher Start
-[sc_playtime] sc_playtime v1.0.0 wird gestartet...
-[sc_playtime] Discord Bot eingeloggt als: BotName#0
-[sc_playtime] Channel gefunden: leaderboard
-[sc_playtime] Existierende Leaderboard-Message gefunden
-[sc_playtime] sc_playtime erfolgreich gestartet!
+      if (!record || now - record.lastReset > options.windowMs) {
+        rateLimitMap.set(identifier, { count: 1, lastReset: now });
+        return { success: true, remaining: options.maxRequests - 1 };
+      }
 
-# Spieler-Events
-[sc_playtime] Spieler verbunden: Justin Gamer (license:xxx)
-[sc_playtime] Spieler getrennt: Justin Gamer
+      if (record.count >= options.maxRequests) {
+        return { success: false, remaining: 0 };
+      }
 
-# Updates
-[sc_playtime] Leaderboard aktualisiert (15 Spieler)
-[sc_playtime] 5 aktive Session(s) gespeichert
+      record.count++;
+      return { success: true, remaining: options.maxRequests - record.count };
+    },
+  };
+}
+
+// Verwendung in API Routes:
+// const limiter = rateLimit({ windowMs: 60_000, maxRequests: 30 });
+// const { success } = limiter.check(ip);
+// if (!success) return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
 ```
 
-### Fehler-Meldungen
+### 3. Zod Validation Schemas
 
-```bash
-# Kein Bot Token
-[sc_playtime] FEHLER: Kein Bot Token gefunden!
+```typescript
+// src/schemas/news.schema.ts - Beispiel
 
-# Keine Channel ID
-[sc_playtime] FEHLER: Keine Channel ID in config.js gesetzt!
+import { z } from "zod";
 
-# Discord API Fehler
-[sc_playtime] Discord API Error 403: Missing Permissions
-[sc_playtime] Rate Limited, warte 5s... (Versuch 1/3)
+export const createPostSchema = z.object({
+  title: z
+    .string()
+    .min(3, "Titel muss mindestens 3 Zeichen lang sein")
+    .max(200, "Titel darf maximal 200 Zeichen lang sein")
+    .trim(),
+  content: z
+    .string()
+    .min(10, "Inhalt muss mindestens 10 Zeichen lang sein")
+    .max(50000),
+  excerpt: z.string().max(500).optional(),
+  category: z.enum(["update", "patch", "event", "announcement"]),
+  published: z.boolean().default(false),
+  imageUrl: z.string().url().optional().or(z.literal("")),
+});
+
+export const updatePostSchema = createPostSchema.partial();
+
+export type CreatePostInput = z.infer<typeof createPostSchema>;
+export type UpdatePostInput = z.infer<typeof updatePostSchema>;
 ```
 
----
+### 4. Security Headers in `next.config.ts`
 
-## 🎯 Performance-Tipps
+```typescript
+// next.config.ts - Security Headers
 
-### Datenbank-Optimierung
-
-Die Tabelle `sc_playtime` hat bereits Indizes für optimale Performance:
-
-```sql
--- Prüfe Indizes
-SHOW INDEX FROM sc_playtime;
-
--- Optimiere Tabelle (monatlich empfohlen)
-OPTIMIZE TABLE sc_playtime;
-```
-
-### Update-Intervall
-
-- **Empfohlen:** 15-30 Minuten
-- **Minimum:** 5 Minuten (wegen Discord Rate Limits)
-- **Maximum:** Unbegrenzt
-
-### Speicher-Intervall
-
-- **Empfohlen:** 60 Sekunden
-- **Minimum:** 30 Sekunden
-- **Maximum:** 300 Sekunden (5 Minuten)
-
----
-
-## 🔐 Sicherheit
-
-### Bot Token schützen
-
-- ✅ **Niemals** den Bot Token in `config.js` hardcoden
-- ✅ **Immer** über `server.cfg` setzen
-- ✅ `server.cfg` in `.gitignore` aufnehmen
-- ✅ Token regelmäßig rotieren
-
-### Datenbank-Zugriff
-
-- ✅ Verwendet `oxmysql` (sicher & performant)
-- ✅ Prepared Statements gegen SQL Injection
-- ✅ Keine direkten Credentials im Code
-
----
-
-## 📈 Statistiken
-
-### Beispiel-Abfragen
-
-```sql
--- Gesamte Spielzeit aller Spieler (in Stunden)
-SELECT SUM(playtime_seconds) / 3600 AS total_hours FROM sc_playtime;
-
--- Durchschnittliche Spielzeit (in Stunden)
-SELECT AVG(playtime_seconds) / 3600 AS avg_hours FROM sc_playtime;
-
--- Top 10 Spieler
-SELECT 
-    CONCAT(u.firstname, ' ', u.lastname) AS name,
-    p.playtime_seconds / 3600 AS hours
-FROM sc_playtime p
-JOIN users u ON p.identifier = u.identifier
-ORDER BY p.playtime_seconds DESC
-LIMIT 10;
-
--- Spieler mit über 100 Stunden
-SELECT 
-    CONCAT(u.firstname, ' ', u.lastname) AS name,
-    p.playtime_seconds / 3600 AS hours
-FROM sc_playtime p
-JOIN users u ON p.identifier = u.identifier
-WHERE p.playtime_seconds >= 360000
-ORDER BY p.playtime_seconds DESC;
+const securityHeaders = [
+  { key: "X-DNS-Prefetch-Control", value: "on" },
+  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
+  { key: "X-Frame-Options", value: "SAMEORIGIN" },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), browsing-topics=()" },
+  {
+    key: "Content-Security-Policy",
+    value: [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-eval' 'unsafe-inline'", // Next.js benötigt unsafe-eval in Dev
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https:",
+      "font-src 'self'",
+      "connect-src 'self' https://servers.fivem.net",
+      "frame-ancestors 'none'",
+    ].join("; "),
+  },
+];
 ```
 
 ---
 
-## 🆘 Support
+## 🎨 Frontend-Architektur (Landing Page)
 
-Bei Problemen oder Fragen:
+### Sektionen-Flow
 
-1. **Logs prüfen:** Aktiviere Debug-Modus in `config.js`
-2. **Datenbank prüfen:** Stelle sicher dass Tabellen existieren
-3. **Discord Bot prüfen:** Teste Bot-Permissions im Channel
-4. **Server-Logs:** Prüfe `server.log` auf Fehler
+```mermaid
+flowchart TD
+    NAV[Navbar - Fixed, Glassmorphism] --> HERO
+    HERO[Hero Section - Fullscreen, Video/Image BG, Player Count, CTA Buttons]
+    HERO --> STATS[Live Stats Graph - Recharts Liniengraph, Spieler-Trend 24h]
+    STATS --> FEATURES[Feature Grid - 6 Cards mit Icons, Hover-Animationen]
+    FEATURES --> TEAM[Team Section - Cards aus DB, Stagger Animation]
+    TEAM --> NEWS[News/Updates Feed - Cards aus DB, Kategorie-Filter]
+    NEWS --> FOOTER[Footer - Links, Discord, Impressum]
+```
 
-### Häufige Fehler
+### Komponentenarchitektur
 
-| Fehler | Ursache | Lösung |
-|--------|---------|--------|
-| `Missing Permissions` | Bot hat keine Rechte | Permissions im Channel prüfen |
-| `Unknown Channel` | Channel ID falsch | Channel ID in `config.js` prüfen |
-| `Invalid Token` | Bot Token falsch | Token in `server.cfg` prüfen |
-| `Rate Limited` | Zu viele Requests | Update-Intervall erhöhen |
+| Komponente | Datenquelle | Animation |
+|-----------|-------------|-----------|
+| [`hero-section.tsx`](src/components/landing/hero-section.tsx) | `GET /api/stats` (Player Count) + `ServerSettings` | Fade-in, Floating Particles |
+| [`stats-graph.tsx`](src/components/landing/stats-graph.tsx) | `GET /api/stats?range=24h` (ServerStats[]) | Slide-up on scroll |
+| [`feature-grid.tsx`](src/components/landing/feature-grid.tsx) | Statische Daten (konstant) | Stagger fade-in |
+| [`team-section.tsx`](src/components/landing/team-section.tsx) | `GET /api/team` (TeamMember[]) | Stagger slide-up |
+| [`news-feed.tsx`](src/components/landing/news-feed.tsx) | `GET /api/news?limit=6` (Post[]) | Stagger fade-in |
 
----
+### Design Tokens
 
-## 📄 Lizenz
-
-Entwickelt für **Sona City Roleplay**
-
----
-
-## 🎉 Credits
-
-- **Framework:** ESX Legacy
-- **Datenbank:** MySQL via oxmysql
-- **Discord API:** v10
-- **Entwickelt von:** Sona City Development
-
----
-
-## 🔄 Changelog
-
-### Version 1.0.0 (09.02.2026)
-- ✅ Initiales Release
-- ✅ Spielzeit-Tracking System
-- ✅ Discord Bot Integration
-- ✅ Top 15 Leaderboard
-- ✅ Persistente Message
-- ✅ Konfigurierbare Texte & Design
-- ✅ Performance-Optimierungen
-- ✅ Umfangreiche Dokumentation
+```css
+/* globals.css */
+:root {
+  --color-accent: #e2491c;
+  --color-accent-hover: #ff5a2e;
+  --color-bg-primary: #0a0a0a;
+  --color-bg-surface: rgba(255, 255, 255, 0.05);
+  --color-bg-glass: rgba(255, 255, 255, 0.08);
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #a0a0a0;
+  --color-border: rgba(255, 255, 255, 0.1);
+  --glass-blur: 12px;
+}
+```
 
 ---
 
-**Viel Erfolg mit sc_playtime! 🚀**
+## 🖥️ Admin Dashboard-Architektur
+
+### Dashboard-Layout
+
+```mermaid
+flowchart LR
+    subgraph Layout [Admin Layout]
+        SIDEBAR[Sidebar Navigation]
+        HEADER[Header - User Info, Logout]
+        CONTENT[Content Area]
+    end
+
+    SIDEBAR --> |Dashboard| DASH[Stats Overview]
+    SIDEBAR --> |News| NEWS_MGMT[News CRUD]
+    SIDEBAR --> |Team| TEAM_MGMT[Team CRUD]
+    SIDEBAR --> |Spieler| PLAYER_MGMT[Player Table + Actions]
+    SIDEBAR --> |Einstellungen| SETTINGS[Server Settings]
+    SIDEBAR --> |Logs| LOGS[Audit Logs - Read Only]
+```
+
+### Admin-Seiten Detail
+
+| Seite | Features | API Routes |
+|-------|----------|------------|
+| Dashboard | Stats-Karten: Views, Players online, Whitelist-Anträge, Server-Status | `GET /api/stats` |
+| News | Tabelle aller Posts, Create/Edit/Delete, Markdown-Editor, Publish Toggle | `CRUD /api/news` |
+| Team | Sortierbare Liste, Drag-and-Drop Reihenfolge, Bild-Upload | `CRUD /api/team` |
+| Spieler | Suchbare Tabelle, Ban/Kick/Whitelist Actions, Filter nach Status | `GET/POST /api/players` |
+| Einstellungen | Maintenance Toggle, Server-IP, Discord Link, Hero-Text, Manual Peak | `GET/PUT /api/settings` |
+| Logs | Unveränderliche Tabelle, Filter nach Action/User/Datum, Pagination | `GET /api/logs` |
+
+### RBAC-Matrix
+
+| Aktion | ADMIN | MODERATOR | VIEWER |
+|--------|-------|-----------|--------|
+| Dashboard ansehen | ✅ | ✅ | ✅ |
+| News erstellen/bearbeiten | ✅ | ✅ | ❌ |
+| News löschen | ✅ | ❌ | ❌ |
+| Team verwalten | ✅ | ❌ | ❌ |
+| Spieler bannen/kicken | ✅ | ✅ | ❌ |
+| Einstellungen ändern | ✅ | ❌ | ❌ |
+| Audit Logs ansehen | ✅ | ✅ | ❌ |
+| Benutzer verwalten | ✅ | ❌ | ❌ |
+
+---
+
+## 🔄 Datenfluss: FiveM API Integration
+
+```mermaid
+sequenceDiagram
+    participant Browser
+    participant NextAPI as Next.js API
+    participant DB as PostgreSQL
+    participant FiveM as FiveM Server API
+
+    Note over Browser,FiveM: Landing Page - Spieleranzahl laden
+    Browser->>NextAPI: GET /api/stats
+    NextAPI->>FiveM: GET https://servers.fivem.net/api/servers/single/{id}
+    FiveM-->>NextAPI: JSON - playerCount, maxPlayers, etc.
+    NextAPI->>DB: INSERT ServerStats - Snapshot speichern
+    NextAPI-->>Browser: JSON - currentPlayers, peak, history[]
+
+    Note over Browser,FiveM: Cron/Interval - Stats sammeln
+    loop Alle 5 Minuten
+        NextAPI->>FiveM: GET Server Status
+        FiveM-->>NextAPI: Player Data
+        NextAPI->>DB: INSERT ServerStats Snapshot
+    end
+```
+
+---
+
+## 📦 Dependencies
+
+```json
+{
+  "dependencies": {
+    "next": "^15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "^5.7.0",
+    "@prisma/client": "^6.0.0",
+    "next-auth": "^5.0.0-beta",
+    "@auth/prisma-adapter": "latest",
+    "zod": "^3.23.0",
+    "bcryptjs": "^2.4.3",
+    "framer-motion": "^11.0.0",
+    "recharts": "^2.12.0",
+    "lucide-react": "latest",
+    "class-variance-authority": "latest",
+    "clsx": "latest",
+    "tailwind-merge": "latest",
+    "@radix-ui/react-slot": "latest",
+    "@radix-ui/react-dialog": "latest",
+    "@radix-ui/react-dropdown-menu": "latest"
+  },
+  "devDependencies": {
+    "prisma": "^6.0.0",
+    "tailwindcss": "^4.0.0",
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/bcryptjs": "latest",
+    "eslint": "latest",
+    "eslint-config-next": "latest"
+  }
+}
+```
+
+---
+
+## 🚀 Implementierungsreihenfolge
+
+### Phase 1: Foundation
+1. Next.js Projekt initialisieren mit TypeScript Strict Mode
+2. Tailwind CSS + Shadcn/UI einrichten
+3. Prisma Schema erstellen und Datenbank migrieren
+4. NextAuth.js v5 mit Credentials Provider konfigurieren
+5. Middleware für Auth + RBAC implementieren
+6. Security Headers in next.config.ts
+7. Zod Schemas für alle Entities
+8. Rate Limiting Utility
+9. Prisma Client Singleton + Seed Script
+
+### Phase 2: Public Frontend
+10. Root Layout mit Fonts, Metadata, Providers
+11. Navbar Komponente (fixed, glassmorphism)
+12. Hero Section mit Player Count
+13. FiveM API Integration (Live Stats)
+14. Stats Graph mit Recharts
+15. Feature Grid
+16. Team Section (Daten aus DB)
+17. News/Updates Feed (Daten aus DB)
+18. Footer
+19. Framer Motion Scroll-Animationen
+20. Responsive Design + Mobile Optimierung
+
+### Phase 3: Admin Dashboard
+21. Admin Layout (Sidebar + Header)
+22. Dashboard Home mit Stats-Karten
+23. News CRUD (Liste, Erstellen, Bearbeiten, Löschen)
+24. Team Management (CRUD + Sortierung)
+25. Player Management Tabelle (Such, Filter, Actions)
+26. Server Settings Seite
+27. Audit Log Viewer
+28. Login Page mit sicherem Formular
+
+### Phase 4: Polish & Security Hardening
+29. Error Boundaries + Loading States
+30. 404 Page
+31. Accessibility Audit
+32. Performance Optimierung (Image Optimization, Lazy Loading)
+33. Finale Security Review (OWASP Checklist)
+34. README + Dokumentation
+35. Seed-Daten für Demo/Entwicklung
+
+---
+
+## ⚠️ Sicherheits-Checkliste (OWASP Top 10)
+
+| # | Risiko | Maßnahme | Status |
+|---|--------|----------|--------|
+| A01 | Broken Access Control | Middleware RBAC, Server-side Auth Checks | Geplant |
+| A02 | Cryptographic Failures | bcrypt für Passwörter, HTTPS erzwungen, Secrets in .env | Geplant |
+| A03 | Injection | Prisma ORM (parameterized), Zod Input Validation | Geplant |
+| A04 | Insecure Design | RBAC Matrix, Audit Logs, Principle of Least Privilege | Geplant |
+| A05 | Security Misconfiguration | Security Headers, CSP, kein Debug in Production | Geplant |
+| A06 | Vulnerable Components | npm audit, regelmäßige Updates | Geplant |
+| A07 | Auth Failures | NextAuth.js, Session Management, Rate Limiting on Login | Geplant |
+| A08 | Data Integrity | Immutable Audit Logs, Zod Validation | Geplant |
+| A09 | Logging & Monitoring | AuditLog Model, Structured Logging | Geplant |
+| A10 | SSRF | Whitelist für externe API Calls (nur FiveM API) | Geplant |
