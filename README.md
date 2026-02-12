@@ -18,6 +18,8 @@
 | Datenbank | PostgreSQL (lokal für Dev) | 16+ |
 | ORM | Prisma | 6.x |
 | Auth | NextAuth.js | v5 (beta) |
+| 2FA | otplib (TOTP) + qrcode | latest |
+| Bild-Upload | Uploadthing (Cloud) | latest |
 | Validation | Zod | 3.x |
 | Animation | Framer Motion | 11.x |
 | Charts | Recharts | 2.x |
@@ -84,6 +86,15 @@ sona-city-web/
 │   │   │   ├── auth/
 │   │   │   │   └── [...nextauth]/
 │   │   │   │       └── route.ts  # NextAuth.js v5 Route Handler
+│   │   │   ├── auth/2fa/
+│   │   │   │   ├── setup/
+│   │   │   │   │   └── route.ts  # POST: 2FA einrichten (QR-Code)
+│   │   │   │   ├── verify/
+│   │   │   │   │   └── route.ts  # POST: 2FA Code verifizieren
+│   │   │   │   └── disable/
+│   │   │   │       └── route.ts  # POST: 2FA deaktivieren
+│   │   │   ├── uploadthing/
+│   │   │   │   └── route.ts      # Uploadthing File Upload Handler
 │   │   │   ├── stats/
 │   │   │   │   └── route.ts      # GET: Server-Stats + Player Count
 │   │   │   ├── news/
@@ -95,9 +106,9 @@ sona-city-web/
 │   │   │   │   └── [id]/
 │   │   │   │       └── route.ts  # PUT, DELETE (admin)
 │   │   │   ├── players/
-│   │   │   │   ├── route.ts      # GET, POST actions (admin only)
+│   │   │   │   ├── route.ts      # GET, POST actions (admin only, DB-only)
 │   │   │   │   └── [id]/
-│   │   │   │       └── route.ts  # Player actions (ban/kick/whitelist)
+│   │   │   │       └── route.ts  # Player actions (ban/whitelist - DB only)
 │   │   │   └── settings/
 │   │   │       └── route.ts      # GET, PUT (admin only)
 │   │   │
@@ -142,7 +153,9 @@ sona-city-web/
 │   │   ├── prisma.ts             # Prisma Client Singleton
 │   │   ├── auth.ts               # NextAuth.js v5 Konfiguration
 │   │   ├── auth-options.ts       # Auth Provider + Callbacks
+│   │   ├── two-factor.ts         # 2FA Setup, Verify, Disable (otplib/qrcode)
 │   │   ├── rate-limit.ts         # Rate Limiter Implementierung
+│   │   ├── uploadthing.ts        # Uploadthing Client + File Router
 │   │   ├── fivem-api.ts          # FiveM Server API Client
 │   │   ├── utils.ts              # Utility-Funktionen (cn, formatDate, etc.)
 │   │   └── constants.ts          # App-weite Konstanten
@@ -197,32 +210,23 @@ enum Role {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  name          String?
-  passwordHash  String    // bcrypt hashed
-  role          Role      @default(VIEWER)
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  lastLoginAt   DateTime?
+  id              String    @id @default(cuid())
+  email           String    @unique
+  name            String?
+  passwordHash    String    // bcrypt hashed
+  role            Role      @default(VIEWER)
+  image           String?
+  twoFactorEnabled Boolean  @default(false)
+  twoFactorSecret  String?  // TOTP Secret (encrypted)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  lastLoginAt     DateTime?
 
   // Relations
   auditLogs     AuditLog[]
   posts         Post[]      @relation("PostAuthor")
 
   @@map("users")
-}
-
-// NextAuth.js Session & Account (für zukünftige OAuth-Erweiterung)
-model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("sessions")
 }
 
 // ==========================================
