@@ -1,147 +1,304 @@
-# sc_grpadmin
+# Plan für den kompletten NUI-Neuaufbau von sc_grpadmin
 
-Admin-/Support-Resource für FiveM mit TXAdmin-ähnlichem Workflow, NUI-Panel, Quick-Controls, Audit-Logging und Ticket-System.
+## Zielbild
 
-## Funktionen (kurz & in Stichpunkten)
+Das bisherige NUI in [`in_arbeit/sc_grpadmin/web/index.html`](../in_arbeit/sc_grpadmin/web/index.html), [`in_arbeit/sc_grpadmin/web/style.css`](../in_arbeit/sc_grpadmin/web/style.css) und [`in_arbeit/sc_grpadmin/web/app.js`](../in_arbeit/sc_grpadmin/web/app.js) wird nicht nur optisch angepasst, sondern strukturell neu aufgebaut.
 
-### 1) Duty, Stealth & Admin-States
-- **Alogin/Alogout/Aduty**: sauberer Duty-Status inkl. Synchronisation.
-- **Noclip/Vanish/Spectate**: steuerbar per Command und per UI-Action-Layer.
-- **Hard-Duty Restore**: Invincible/Fall/Ragdoll-States werden beim Deaktivieren wiederhergestellt.
-- **HeadTag-Regeln**: „Administrator“-Anzeige nur bei `OnDuty && !Stealth` (noclip/vanish/spectate).
+Der Neuaufbau soll:
 
-### 2) TX-ähnliche Quick Controls
-- Overlay links oben über `/quick` oder Alias `/tq`.
-- Tastatursteuerung:
-  - Pfeil hoch/runter: Auswahl
-  - Tab: Kategorie wechseln
-  - Enter: Action ausführen
-  - Esc: schließen
-- Unterstützt Kernaktionen wie Duty/States/Teleport/Tickets/Maintenance.
+- die aktuelle Mischstruktur aus Support- und Admin-Ansicht vereinheitlichen
+- eine klare Header-Sidebar-Content-Architektur liefern
+- den schwarzen Hintergrund-Bug aktiv vermeiden
+- auf älterem FiveM-Chromium stabil bleiben
+- oben rechts nur einen klaren ESC-Schließen-Button zeigen
+- den Ordner [`BACKUPS/`](../BACKUPS) unangetastet lassen
 
-### 3) NUI Quick Actions
-- Dashboard-Quick-Actions für:
-  - `alogin`, `alogout`, `aduty`
-  - `noclip`, `vanish`, `ac-notify`
-  - `goto`, `bring`, `bringback`, `spectate`
-  - `smute`, `sunmute`
-  - `healall`, `clearcars`, `setdim`, `house`
-  - Screenshot-Request
-- Einheitlicher Action-Endpoint serverseitig: `sc_grpadmin:ui:action`.
+## Bisherige Erkenntnisse
 
-### 4) Ticket-Workflow (erweitert)
-- Ticket erstellen inkl. **Priority** (`low/medium/high`) und **Labels**.
-- Ticket-Liste mit Filtern (Status, Assignee, Priority, Label).
-- Thread-Ansicht für Antworten.
-- **Interne Team-Notizen** getrennt vom Player-Chat.
-- Ticket-Zuweisung (Assignee Identifier/Name) direkt im Panel.
+### Bestehende technische Anbindung, die erhalten bleiben sollte
 
-### 5) Spielerverwaltung / Moderation
-- Aktionen im Player-Modal:
-  - `goto`, `bring`, `spectate`
-  - `heal`, `revive`
-  - `freeze`, `unfreeze`
-  - `warn`, `kick`, `ban`, `unban`
-  - `smute`, `sunmute`
-  - Screenshot
-- Pro Spieler: Historie/Audit im Modal (14 Tage laut Config-Default).
+- FiveM lädt weiter über [`ui_page 'web/index.html'`](../in_arbeit/sc_grpadmin/fxmanifest.lua)
+- Die Message-Bridge über [`window.addEventListener('message')`](../in_arbeit/sc_grpadmin/web/app.js) bleibt als Kernintegration erhalten
+- Der POST-Helfer aus [`post()`](../in_arbeit/sc_grpadmin/web/app.js) ist brauchbar und sollte in bereinigter Form bestehen bleiben
+- Die UI-State-Rückmeldung aus [`postUiState()`](../in_arbeit/sc_grpadmin/web/app.js) ist für Fokus und Open-Close-Synchronisierung sinnvoll
+- Das Copy-Pattern in [`copyText()`](../in_arbeit/sc_grpadmin/web/app.js) mit [`document.execCommand('copy')`](../in_arbeit/sc_grpadmin/web/app.js) ist FiveM-kompatibel und sollte weiterverwendet werden
 
-### 6) Monitoring
-- Live-Snapshots für onDuty-Team:
-  - Player Count / OnDuty Count
-  - Resource-States
-  - Netzwerk-Basisdaten (`onesync`, max clients)
-  - Healthchecks (DB / Screenshot-Service)
+### Hauptprobleme im aktuellen NUI
 
-### 7) Feed & Audit
-- Live-Feed für Team-Events.
-- Feed-Filter/Query nach Kategorie/Actor/Target/Text.
-- Drilldown (JSON-Detailansicht von Payload/Meta).
-- Persistenz über DB-Logtabellen.
+- Die Struktur in [`web/index.html`](../in_arbeit/sc_grpadmin/web/index.html) ist sehr groß, gemischt und schwer pflegbar
+- Es gibt zu viele separate Bereiche und Spezialpanels mit uneinheitlicher Logik
+- Die aktuelle Shell verwendet fast deckende Flächen wie [`background: rgba(11, 15, 22, 0.98)`](../in_arbeit/sc_grpadmin/web/style.css) und [`background: rgba(19, 24, 35, 0.96)`](../in_arbeit/sc_grpadmin/web/style.css), was den transparenten Eindruck verhindert und FiveM-Fehlerbilder begünstigt
+- Es existieren viele verstreute DOM-Referenzen in [`web/app.js`](../in_arbeit/sc_grpadmin/web/app.js), wodurch ein echter Neuaufbau sinnvoller ist als weiteres Flicken
+- Die aktuelle Admin-Navigation ist funktional, aber inhaltlich zu breit und visuell zu unruhig
+- Quick-Actions und Detailbereiche sind zu stark verteilt und wirken teilweise wie eine Button-Wand
 
-### 8) Permissions / Rollenmatrix
-- Command-zu-MinRank Override im UI.
-- Override-Historie (wer/was/wann).
-- Export/Import von Overrides (JSON).
-- Reset der Overrides im Panel (projektleitungsgeführt).
+### Sinnvolle Referenzen
 
-### 9) Kill-Logs
-- Erfassung über `baseevents` + Client-Event-Pfad (`KILL_REPORT`) als Fallback.
-- Speicherung in DB (`kill_logs`) + Live-Update im NUI-Tab.
+- Der einfache ESC-Button-Aufbau in [`nui-reference/index.html`](../in_arbeit/sc_grpadmin/nui-reference/index.html) ist als Ausgangsmuster geeignet
+- Die lokale Settings-Persistenz in [`loadUiSettings()`](../in_arbeit/sc_grpadmin/web/app.js) kann reduziert weitergenutzt werden
+- Der Screenshot-Flow und die Capture-Dateien in [`web/capture_assets`](../in_arbeit/sc_grpadmin/web/capture_assets) werden nur behalten, wenn der bestehende Screenshot-Use-Case aktiv benötigt wird
 
-### 10) Copy UX (TX-ähnlich)
-- Copy-Buttons für:
-  - Identifiers/Licenses (inkl. „Copy all“)
-  - Screenshots (URL/Base64)
-  - Permission-Export (JSON)
+## Neue Gesamtarchitektur
 
----
+Es wird eine gemeinsame UI-Shell geben, die sowohl für Support als auch Admin verwendet wird.
 
-## Wichtige Projektdateien
+### Shell-Aufbau
 
-- Manifest: `fxmanifest.lua`
-- Config: `config.lua`
-- Migrationen: `sc_grpadmin_migrations.sql`
-- Serverseitig (Kern):
-  - `modules/server/60_admin_commands.lua`
-  - `modules/server/52_support.lua`
-  - `modules/server/56_audit.lua`
-  - `modules/server/57_bans.lua`
-  - `modules/server/58_monitor.lua`
-  - `modules/server/20_permissions.lua`
-- Clientseitig (Kern):
-  - `modules/client/80_aduty.lua`
-  - `modules/client/85_admin_runtime.lua`
-  - `modules/client/65_killlogs.lua`
-- NUI:
-  - `web/index.html`
-  - `web/style.css`
-  - `web/app.js`
+1. Globaler Root mit transparentem Seitenhintergrund
+2. Zentrale Panel-Shell mit halbtransparenter Oberfläche
+3. Fester Header
+4. Linke Sidebar mit Modus-spezifischer Navigation
+5. Rechter Content-Bereich mit klaren Seitenzuständen
+6. Separate Overlays für Toast, Modals, Screenshot und optionale Quick-Action-Palette
 
----
+### Modus-Logik
 
-## Code-Fakten (aktueller Snapshot)
+- `support` und `apanel` bleiben als Backend-Modi erhalten
+- Beide Modi teilen sich dieselbe Shell
+- Nur Navigation, Titel und Seiteninhalte wechseln
+- Dadurch bleiben Öffnen, Schließen und Fokus deutlich einfacher
 
-Ermittelt per lokalem Code-Scan (ohne `web/capture_assets` und ohne `capture.js` Hilfsdateien):
+```mermaid
+flowchart LR
+    A[FiveM message bridge] --> B[app.js router]
+    B --> C[Shared shell]
+    C --> D[Support navigation]
+    C --> E[Admin navigation]
+    D --> F[Support dashboard]
+    D --> G[Meine Tickets]
+    D --> H[Neues Ticket]
+    E --> I[Dashboard]
+    E --> J[Spieler]
+    E --> K[Tickets]
+    E --> L[Aktionen]
+    E --> M[Logs und Feed]
+    E --> N[Rechte]
+    E --> O[Einstellungen]
+```
 
-- **Dateien gesamt (Code):** `44`
-- **Zeilen gesamt:** `12,925`
-- **Nach Sprache:**
-  - Lua: `8,414`
-  - JavaScript: `2,119`
-  - CSS: `1,531`
-  - HTML: `566`
-  - SQL: `295`
-- **Nach Layer:**
-  - Server-Lua: `4,950`
-  - Client-Lua: `2,680`
-  - Shared-Lua: `350`
-  - Web (HTML/CSS/JS): `2,796`
+## Geplanter Neuaufbau von HTML
 
-> Hinweis: Diese Zahlen sind ein Snapshot zum Zeitpunkt der Erstellung und können sich nach weiteren Änderungen ändern.
+[`in_arbeit/sc_grpadmin/web/index.html`](../in_arbeit/sc_grpadmin/web/index.html) wird komplett neu strukturiert.
 
----
+### Beibehaltene Root-Container
 
-## Datenbank / Migration (Kurz)
+Diese äußeren Einstiegspunkte bleiben aus Integrationsgründen bestehen oder werden in gleichwertiger Form neu angelegt:
 
-Neue/erweiterte Tabellen u. a.:
-- `tickets` (Assignee/Priority/Labels)
-- `ticket_internal_notes`
-- `player_actions_audit`
-- `permission_overrides_history`
-- `kill_logs`
-- `admin_bans`
-- `admin_feed_log`
+- `#app`
+- `#overlay`
+- `#feed`
+- `#toast`
+- Screenshot-Modal
+- Action-Modal
+- optionale Quick-Action-Palette nur wenn der Serverfluss sie weiter nutzt
 
-Migration ausführen über:
-- `sc_grpadmin_migrations.sql`
+### Neue innere Struktur
 
----
+- Header mit Branding links
+- Oberer rechter Bereich nur mit ESC-Schließen-Button
+- Sidebar links mit Icons plus Labels
+- Hauptbereich rechts mit Page-Switching über saubere Sections
+- Einheitliche Card-Struktur für KPIs, Listen, Detailpanels und Settings-Blöcke
 
-## Abhängigkeiten (Kurz)
+### Seitenstruktur Support
 
-- `es_extended`
-- `esx_skin`
-- `skinchanger`
-- Screenshot-Integration via konfigurierbarer Resource (Default/Fallback über Config)
+- Übersicht
+  - offene eigene Tickets
+  - letzter Ticketstatus
+  - klare Schnellhinweise
+- Meine Tickets
+  - Suche
+  - Ticketliste
+  - Thread rechts oder untergeordnet im Detailbereich
+- Neues Ticket
+  - Betreff
+  - Priorität
+  - Labels optional
+  - Nachricht
 
+### Seitenstruktur Admin
+
+- Dashboard
+  - wichtige Kennzahlen
+  - offene Tickets hervorgehoben
+  - aktive Admin-Infos kompakt
+  - kurze Feed-Vorschau
+- Spieler
+  - Suche links oben
+  - kompakte Liste
+  - rechter Detailbereich mit kopierbaren IDs, Lizenzen, HWIDs und logisch gruppierten Aktionen
+- Tickets
+  - Filterleiste
+  - Ticketliste
+  - Thread und interne Notizen im Detailbereich
+- Aktionen
+  - gruppierte Schnellaktionen
+  - Teleport und Utility getrennt von Moderationsaktionen
+  - gefährliche Aktionen visuell klar, aber nicht dramatisch
+- Logs und Feed
+  - Timeline oder Listenansicht
+  - Typen dezent farblich markiert
+  - Zeit zurückhaltend dargestellt
+- Rechte
+  - Gruppenrechte getrennt von Extra-Rechten
+  - Verlaufsbereich separat
+  - Bearbeitung nur sichtbar, wenn Berechtigung vorhanden ist
+- Einstellungen
+  - Feed-Background-Transparenz Toggle
+  - nur wenige sinnvolle UI-Einstellungen
+
+## Geplanter Neuaufbau von CSS
+
+[`in_arbeit/sc_grpadmin/web/style.css`](../in_arbeit/sc_grpadmin/web/style.css) wird vollständig neu aufgebaut.
+
+### Design-Token
+
+- Basisfarbe `#282828`
+- Akzentfarbe `#e2491c`
+- Text hell und kontrastreich, aber nicht reinweiß
+- Flächen mit klassischem `rgba` statt moderner Filtertechnik
+
+### Transparenz-Strategie gegen FiveM-Probleme
+
+- [`html`](../in_arbeit/sc_grpadmin/web/style.css) und [`body`](../in_arbeit/sc_grpadmin/web/style.css) bleiben vollständig transparent
+- Kein vollflächiger schwarzer Overlay-Hintergrund auf Root-Ebene
+- Keine globale `opacity` auf dem Hauptcontainer, damit Text nicht ausgewaschen wird
+- Transparenz nur auf einzelnen Flächen per `rgba`
+- Hauptshell ungefähr im Bereich von 0.82 bis 0.9 Alpha
+- Innere Karten etwas dichter für Lesbarkeit
+- Kein `backdrop-filter`
+- Keine experimentellen Masken, Blend-Modes oder komplizierten Filter-Stacks
+
+### Kompatibilitätsregeln
+
+- Klassisches Flex und Grid nur in einfacher Form
+- Keine stark verschachtelten Animationsketten
+- Öffnen und Schließen nur mit schlichter `opacity` plus `transform` Kombination oder reinem Klassenwechsel
+- Minimale Schatten ohne mehrfache Layer-Kaskaden
+- Z-Index-Schema bewusst klein und eindeutig halten
+
+### Komponentenbibliothek
+
+- Shell
+- Header
+- Sidebar-Item
+- Section-Header
+- Stat-Card
+- Listen-Row
+- Detail-Card
+- Formularfeld
+- Primärbutton
+- Sekundärbutton
+- Danger-Button
+- Badge und Status-Chip
+- Modal
+- Empty-State
+
+## Geplanter Neuaufbau von JavaScript
+
+[`in_arbeit/sc_grpadmin/web/app.js`](../in_arbeit/sc_grpadmin/web/app.js) wird funktional neu organisiert.
+
+### State-Struktur
+
+Der State wird in wenige klar getrennte Bereiche zerlegt:
+
+- `ui`
+  - open
+  - mode
+  - page
+  - focus
+  - loading
+  - error
+- `data`
+  - players
+  - tickets
+  - supportTickets
+  - feed
+  - permissions
+  - monitor
+- `selection`
+  - selectedPlayerId
+  - selectedTicketId
+  - activeFeedEntryId
+- `filters`
+  - players
+  - tickets
+  - feed
+- `settings`
+  - feedTransparent
+
+### Funktionsgruppen
+
+- DOM-Cache und Startlogik
+- Message-Router für `open`, `close`, `forceClose`, `overlay`, `feedPush`, `duty`, `update`, `showScreenshot`
+- Page-Router für Support und Admin
+- Render-Funktionen pro Seite
+- Event-Delegation für Listen und Aktionsbuttons
+- klare Helper für Copy, Toast, Request, Safe-Parsing
+- ESC-Handling zentral an einer Stelle
+
+### Beibehaltene Integrationslogik
+
+- [`openUI()`](../in_arbeit/sc_grpadmin/web/app.js)
+- [`hideUI()`](../in_arbeit/sc_grpadmin/web/app.js)
+- [`closeUI()`](../in_arbeit/sc_grpadmin/web/app.js)
+- [`forceCloseUI()`](../in_arbeit/sc_grpadmin/web/app.js)
+- [`switchTab()`](../in_arbeit/sc_grpadmin/web/app.js) als Konzept, aber in neuer Seitenlogik verschlankt
+- [`postUiState()`](../in_arbeit/sc_grpadmin/web/app.js) in vereinfachter Form
+- [`copyText()`](../in_arbeit/sc_grpadmin/web/app.js)
+
+## Altlasten, die entfernt werden sollen
+
+- alte Panel-Struktur mit vielen unterschiedlichen Unterlayouts
+- doppelte oder inkonsistente Klassen
+- Sidebar-Collapse-Mechanik, wenn sie keinen echten Mehrwert liefert
+- überladene Quick-Action-Cluster im Dashboard
+- uneinheitliche Kartenstile
+- unnötige Status-Pills im Header rechts
+- alte Flächen mit fast vollständig deckendem dunklem Hintergrund
+- nicht mehr benötigte Spezialcontainer und Hilfsklassen
+- unnötige Transition- und Shadow-Kombinationen
+
+## Was übernommen werden darf
+
+- Message-Bridge und POST-Schnittstellen
+- Copy-Mechanik für Identifier, Lizenzen und HWIDs
+- Screenshot-Modal nur falls der Flow aktiv genutzt wird
+- Feed- und Overlay-Grundlogik, aber im neuen visuellen System
+- gegebenenfalls sinnvolle ID-Namen, wenn die Lua-Seite darauf indirekt angewiesen ist
+
+## Umsetzungsreihenfolge für Code-Modus
+
+1. [`web/index.html`](../in_arbeit/sc_grpadmin/web/index.html) komplett neu schreiben und dabei nur die notwendigen Root-Anker erhalten
+2. [`web/style.css`](../in_arbeit/sc_grpadmin/web/style.css) vollständig ersetzen und neues Designsystem anlegen
+3. [`web/app.js`](../in_arbeit/sc_grpadmin/web/app.js) von oben nach unten neu ordnen
+4. alle DOM-Referenzen an die neue Struktur anpassen
+5. Support- und Admin-Routing auf gemeinsame Shell umstellen
+6. Spieler-Detailpanel mit Copy-Aktionen und gruppierten Moderationsaktionen aufbauen
+7. Tickets, Feed, Rechte und Einstellungen als eigenständige Seiten sauber rendern
+8. ESC-Schließen per Button und Tastatur konsistent absichern
+9. Transparenz und Layering gegen FiveM-Schwarzbild gezielt prüfen
+10. Altlasten entfernen, die nach dem Neuaufbau nicht mehr verwendet werden
+
+## Testcheckliste für die Umsetzung
+
+- UI öffnet sauber
+- UI schließt sauber über den ESC-Button
+- Tasten-ESC schließt zuverlässig, sofern Fokus korrekt gesetzt ist
+- Kein schwarzer Vollhintergrund sichtbar
+- Hintergrund des Spiels bleibt sichtbar
+- Sidebar-Navigation funktioniert
+- Seiten wechseln ohne JS-Fehler
+- Spielerliste filtert korrekt
+- Ticket-Detailbereich lädt korrekt
+- Copy-Aktionen funktionieren
+- Feed und Logs rendern lesbar
+- Transparenz bleibt stabil
+- Z-Index-Reihenfolge ist sauber
+- Keine flackernden Open-Close-Effekte
+- Layout bleibt auf kleineren Auflösungen benutzbar
+- Keine Änderungen im Ordner [`BACKUPS/`](../BACKUPS)
+
+## Entscheidungsvorlage für den nächsten Schritt
+
+Der sinnvolle nächste Schritt ist ein Wechsel in [💻 Code](../in_arbeit/sc_grpadmin/web/app.js) zur tatsächlichen Umsetzung dieses Plans mit vollständigem Ersatz von [`web/index.html`](../in_arbeit/sc_grpadmin/web/index.html), [`web/style.css`](../in_arbeit/sc_grpadmin/web/style.css) und [`web/app.js`](../in_arbeit/sc_grpadmin/web/app.js).
